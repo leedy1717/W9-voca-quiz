@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>English Vocabulary Quiz</title>
+
+  <!-- Supabase JavaScript v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-dark: #3730a3;
+      --background: #f5f7ff;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --correct: #15803d;
+      --correct-bg: #f0fdf4;
+      --incorrect: #b91c1c;
+      --incorrect-bg: #fef2f2;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px 16px;
+      min-height: 100vh;
+      background: var(--background);
+      color: var(--text);
+      font-family: Arial, "Noto Sans KR", sans-serif;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 620px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin: 12px 0 24px;
+    }
+
+    .header h1 {
+      margin: 0 0 10px;
+      color: var(--primary-dark);
+      font-size: clamp(26px, 6vw, 36px);
+    }
+
+    .header p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .card {
+      padding: 26px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: 0 8px 30px rgba(31, 41, 55, 0.06);
+    }
+
+    .top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .progress-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .score {
+      color: var(--primary);
+      font-weight: 800;
+      font-size: 17px;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      margin-bottom: 26px;
+      overflow: hidden;
+      background: #e5e7eb;
+      border-radius: 99px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: var(--primary);
+      transition: width 0.25s ease;
+    }
+
+    .question-label {
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .word {
+      margin: 0 0 10px;
+      font-size: clamp(34px, 8vw, 46px);
+      text-align: center;
+      color: var(--primary-dark);
+      overflow-wrap: anywhere;
+    }
+
+    .instruction {
+      margin: 0 0 24px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .option-button {
+      min-height: 62px;
+      padding: 14px 10px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      overflow-wrap: anywhere;
+    }
+
+    .option-button:hover:not(:disabled) {
+      border-color: var(--primary);
+      background: #eef2ff;
+    }
+
+    .option-button:focus-visible,
+    .primary-button:focus-visible {
+      outline: 3px solid #a5b4fc;
+      outline-offset: 3px;
+    }
+
+    .option-button:disabled {
+      cursor: default;
+      opacity: 1;
+    }
+
+    .option-button.selected-correct {
+      border-color: var(--correct);
+      background: var(--correct-bg);
+      color: var(--correct);
+      font-weight: 700;
+    }
+
+    .option-button.selected-incorrect {
+      border-color: var(--incorrect);
+      background: var(--incorrect-bg);
+      color: var(--incorrect);
+      font-weight: 700;
+    }
+
+    .feedback {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 12px;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    .feedback.correct {
+      background: var(--correct-bg);
+      color: var(--correct);
+    }
+
+    .feedback.incorrect {
+      background: var(--incorrect-bg);
+      color: var(--incorrect);
+    }
+
+    .feedback strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .feedback:empty {
+      display: none;
+    }
+
+    .save-status {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .save-status.success {
+      color: var(--correct);
+    }
+
+    .save-status.error {
+      color: var(--incorrect);
+    }
+
+    .bottom-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .small-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .primary-button {
+      padding: 13px 20px;
+      border: 0;
+      border-radius: 12px;
+      background: var(--primary);
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .primary-button:hover {
+      background: var(--primary-dark);
+    }
+
+    .primary-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    .result {
+      text-align: center;
+    }
+
+    .result h2 {
+      margin-top: 0;
+      font-size: 28px;
+      color: var(--primary-dark);
+    }
+
+    .result-score {
+      margin: 20px 0;
+      font-size: 54px;
+      font-weight: 800;
+      color: var(--primary);
+    }
+
+    .result-message {
+      margin-bottom: 24px;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    .result-details {
+      margin: 0 0 24px;
+      padding: 0;
+      list-style: none;
+      text-align: left;
+    }
+
+    .result-details li {
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      line-height: 1.6;
+    }
+
+    .result-details li:last-child {
+      border-bottom: 0;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .footer-note {
+      margin: 18px 0 0;
+      color: var(--muted);
+      text-align: center;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 420px) {
+      .card {
+        padding: 20px 16px;
+      }
+
+      .options {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .option-button {
+        min-height: 54px;
+      }
+
+      .bottom-row {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .bottom-row .primary-button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="container">
+    <header class="header">
+      <h1>English Vocabulary Quiz</h1>
+      <p>Choose the correct Korean meaning.<br>There are 3 questions.</p>
+    </header>
+
+    <section class="card" id="quiz-card">
+      <div class="top-row">
+        <span class="progress-label" id="progress-label">
+          Question 1 of 3
+        </span>
+        <span class="score" id="score-label">Score: 0 / 3</span>
+      </div>
+
+      <div
+        class="progress-track"
+        role="progressbar"
+        aria-label="Quiz progress"
+        aria-valuemin="0"
+        aria-valuemax="3"
+        aria-valuenow="0"
+        id="progress-track"
+      >
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+
+      <div id="question-area">
+        <p class="question-label" id="question-label">QUESTION 1</p>
+        <h2 class="word" id="word">abundant</h2>
+        <p class="instruction">Choose the correct meaning.</p>
+
+        <div class="options" id="options">
+          <!-- Options are created by JavaScript. -->
+        </div>
+
+        <div
+          id="feedback"
+          class="feedback"
+          role="status"
+          aria-live="polite"
+        ></div>
+
+        <div
+          id="save-status"
+          class="save-status"
+          role="status"
+          aria-live="polite"
+        ></div>
+
+        <div class="bottom-row">
+          <span class="small-note" id="attempt-note">
+            Choose one answer for each question.
+          </span>
+
+          <button
+            type="button"
+            class="primary-button hidden"
+            id="next-button"
+          >
+            Next Question
+          </button>
+        </div>
+      </div>
+
+      <div id="result-area" class="result hidden">
+        <h2>Quiz Completed!</h2>
+        <p>Your final score</p>
+        <div class="result-score" id="final-score">0 / 3</div>
+        <p class="result-message" id="result-message"></p>
+
+        <ul class="result-details" id="result-details"></ul>
+
+        <button
+          type="button"
+          class="primary-button"
+          id="restart-button"
+        >
+          Try Again
+        </button>
+      </div>
+    </section>
+
+    <p class="footer-note">
+      Each question accepts one answer only.<br>
+      Your answers are saved without collecting your name or email.
+    </p>
+  </main>
+
+  <script>
+    "use strict";
+
+    // Replace these two values with your Supabase project details.
+    const SUPABASE_URL = "YOUR_SUPABASE_URL";
+    const SUPABASE_PUBLISHABLE_KEY = "YOUR_PUBLISHABLE_KEY";
+
+    // Quiz questions.
+    // The correct answer must match one of the four option strings.
+    const QUESTIONS = [
+      {
+        question_no: 1,
+        english_word: "abundant",
+        options: ["조용한", "풍부한", "위험한", "느린"],
+        correct_answer: "풍부한"
+      },
+      {
+        question_no: 2,
+        english_word: "reluctant",
+        options: ["주저하는", "열정적인", "정확한", "부지런한"],
+        correct_answer: "주저하는"
+      },
+      {
+        question_no: 3,
+        english_word: "brief",
+        options: ["강력한", "평범한", "짧은", "불규칙한"],
+        correct_answer: "짧은"
+      }
+    ];
+
+    const TOTAL_QUESTIONS = QUESTIONS.length;
+
+    // Supabase client.
+    // If the configuration is missing or invalid, the quiz still works locally.
+    let supabaseClient = null;
+    let supabaseConfigurationMessage = "";
+
+    function initializeSupabase() {
+      const hasPlaceholder =
+        SUPABASE_URL === "YOUR_SUPABASE_URL" ||
+        SUPABASE_PUBLISHABLE_KEY === "YOUR_PUBLISHABLE_KEY";
+
+      if (hasPlaceholder) {
+        supabaseConfigurationMessage =
+          "Supabase is not configured. Replace the URL and Publishable Key.";
+        return;
+      }
+
+      if (!window.supabase || !window.supabase.createClient) {
+        supabaseConfigurationMessage =
+          "The Supabase library could not be loaded.";
+        return;
+      }
+
+      try {
+        supabaseClient = window.supabase.createClient(
+          SUPABASE_URL,
+          SUPABASE_PUBLISHABLE_KEY
+        );
+      } catch (error) {
+        supabaseConfigurationMessage =
+          "Supabase initialization failed.";
+        console.error("Supabase initialization error:", error);
+      }
+    }
+
+    initializeSupabase();
+
+    // DOM elements.
+    const quizCard = document.getElementById("quiz-card");
+    const questionArea = document.getElementById("question-area");
+    const resultArea = document.getElementById("result-area");
+
+    const progressLabel = document.getElementById("progress-label");
+    const scoreLabel = document.getElementById("score-label");
+    const progressTrack = document.getElementById("progress-track");
+    const progressBar = document.getElementById("progress-bar");
+
+    const questionLabel = document.getElementById("question-label");
+    const wordElement = document.getElementById("word");
+    const optionsElement = document.getElementById("options");
+
+    const feedbackElement = document.getElementById("feedback");
+    const saveStatusElement = document.getElementById("save-status");
+
+    const nextButton = document.getElementById("next-button");
+    const restartButton = document.getElementById("restart-button");
+
+    const finalScoreElement = document.getElementById("final-score");
+    const resultMessageElement = document.getElementById("result-message");
+    const resultDetailsElement = document.getElementById("result-details");
+
+    // State for the current quiz attempt.
+    let attemptId = null;
+    let currentQuestionIndex = 0;
+    let score = 0;
+
+    // Each entry is null until the first answer is chosen.
+    // Once set, the answer cannot be changed.
+    let answers = [];
+
+    // Timestamp for the current question.
+    let questionStartedAt = 0;
+
+    // Keep a separate result for each INSERT operation.
+    let saveResults = [];
+
+    // Prevent restarting before the current attempt's INSERT operations finish.
+    let pendingSaves = 0;
+    let restartRequested = false;
+
+    function startQuiz() {
+      if (pendingSaves > 0) {
+        restartRequested = true;
+        restartButton.disabled = true;
+        restartButton.textContent = "Saving previous answers...";
+        return;
+      }
+
+      restartRequested = false;
+      restartButton.disabled = false;
+      restartButton.textContent = "Try Again";
+
+      // Generate a new UUID for every quiz attempt.
+      if (!window.crypto || typeof window.crypto.randomUUID !== "function") {
+        alert(
+          "This browser does not support crypto.randomUUID(). " +
+          "Please use a modern browser over HTTPS."
+        );
+        return;
+      }
+
+      attemptId = window.crypto.randomUUID();
+      currentQuestionIndex = 0;
+      score = 0;
+      answers = Array(TOTAL_QUESTIONS).fill(null);
+      saveResults = Array(TOTAL_QUESTIONS).fill(null);
+
+      questionArea.classList.remove("hidden");
+      resultArea.classList.add("hidden");
+
+      renderQuestion();
+    }
+
+    function renderQuestion() {
+      const question = QUESTIONS[currentQuestionIndex];
+
+      progressLabel.textContent =
+        `Question ${currentQuestionIndex + 1} of ${TOTAL_QUESTIONS}`;
+
+      scoreLabel.textContent = `Score: ${score} / ${TOTAL_QUESTIONS}`;
+
+      const completedCount = answers.filter(
+        answer => answer !== null
+      ).length;
+
+      progressBar.style.width =
+        `${(completedCount / TOTAL_QUESTIONS) * 100}%`;
+
+      progressTrack.setAttribute("aria-valuenow", completedCount);
+
+      questionLabel.textContent =
+        `QUESTION ${question.question_no}`;
+
+      wordElement.textContent = question.english_word;
+
+      feedbackElement.textContent = "";
+      feedbackElement.className = "feedback";
+
+      saveStatusElement.textContent = "";
+      saveStatusElement.className = "save-status";
+
+      nextButton.classList.add("hidden");
+      nextButton.disabled = false;
+
+      optionsElement.replaceChildren();
+
+      // Start measuring only after the question is displayed.
+      questionStartedAt = performance.now();
+
+      question.options.forEach(option => {
+        const button = document.createElement("button");
+
+        button.type = "button";
+        button.className = "option-button";
+        button.textContent = option;
+
+        button.addEventListener("click", () => {
+          handleAnswer(option, button);
+        });
+
+        optionsElement.appendChild(button);
+      });
+    }
+
+    function handleAnswer(chosenAnswer, selectedButton) {
+      // A question can be answered only once.
+      if (answers[currentQuestionIndex] !== null) {
+        return;
+      }
+
+      // Stop the timer at the first selection.
+      const elapsed = performance.now() - questionStartedAt;
+
+      const responseTimeMs = Math.max(
+        0,
+        Math.round(elapsed)
+      );
+
+      const question = QUESTIONS[currentQuestionIndex];
+      const isCorrect = chosenAnswer === question.correct_answer;
+
+      // Lock the answer before starting the asynchronous database request.
+      // This prevents double clicks from creating duplicate INSERT operations.
+      answers[currentQuestionIndex] = {
+        chosen_answer: chosenAnswer,
+        is_correct: isCorrect,
+        response_time_ms: responseTimeMs
+      };
+
+      Array.from(optionsElement.children).forEach(button => {
+        button.disabled = true;
+      });
+
+      if (isCorrect) {
+        score += 1;
+        selectedButton.classList.add("selected-correct");
+
+        feedbackElement.className = "feedback correct";
+        feedbackElement.replaceChildren();
+
+        const title = document.createElement("strong");
+        title.textContent = "Correct!";
+
+        const message = document.createElement("span");
+        message.textContent =
+          `"${question.english_word}" means "${question.correct_answer}".`;
+
+        feedbackElement.append(title, message);
+      } else {
+        selectedButton.classList.add("selected-incorrect");
+
+        // Highlight the correct answer as well.
+        Array.from(optionsElement.children).forEach(button => {
+          if (button.textContent === question.correct_answer) {
+            button.classList.add("selected-correct");
+          }
+        });
+
+        feedbackElement.className = "feedback incorrect";
+        feedbackElement.replaceChildren();
+
+        const title = document.createElement("strong");
+        title.textContent = "Incorrect.";
+
+        const message = document.createElement("span");
+        message.textContent =
+          `The correct answer is "${question.correct_answer}".`;
+
+        feedbackElement.append(title, message);
+      }
+
+      scoreLabel.textContent = `Score: ${score} / ${TOTAL_QUESTIONS}`;
+
+      // Save this answer exactly once.
+      saveAnswer(
+        question,
+        chosenAnswer,
+        isCorrect,
+        responseTimeMs,
+        currentQuestionIndex
+      );
+
+      if (currentQuestionIndex < TOTAL_QUESTIONS - 1) {
+        nextButton.textContent = "Next Question";
+      } else {
+        nextButton.textContent = "See Results";
+      }
+
+      nextButton.classList.remove("hidden");
+      nextButton.focus();
+    }
+
+    async function saveAnswer(
+      question,
+      chosenAnswer,
+      isCorrect,
+      responseTimeMs,
+      answerIndex
+    ) {
+      if (!supabaseClient) {
+        const message = supabaseConfigurationMessage ||
+          "Supabase is unavailable. This answer was not saved.";
+
+        setSaveStatus(answerIndex, "error", message);
+        return;
+      }
+
+      // These names match the columns in public.quiz_answers.
+      const row = {
+        attempt_id: attemptId,
+        question_no: question.question_no,
+        english_word: question.english_word,
+        chosen_answer: chosenAnswer,
+        is_correct: isCorrect,
+        response_time_ms: responseTimeMs
+      };
+
+      pendingSaves += 1;
+      setSaveStatus(answerIndex, "pending", "Saving answer...");
+
+      try {
+        // INSERT only. No SELECT, UPDATE, DELETE, or insert().select().
+        const { error } = await supabaseClient
+          .from("quiz_answers")
+          .insert(row);
+
+        if (error) {
+          console.error("Answer save failed:", error);
+
+          setSaveStatus(
+            answerIndex,
+            "error",
+            "Save failed. You can continue the quiz."
+          );
+        } else {
+          setSaveStatus(
+            answerIndex,
+            "success",
+            "Saved successfully."
+          );
+        }
+      } catch (error) {
+        console.error("Unexpected save error:", error);
+
+        setSaveStatus(
+          answerIndex,
+          "error",
+          "A network error occurred. You can continue the quiz."
+        );
+      } finally {
+        pendingSaves -= 1;
+
+        if (pendingSaves === 0 && restartRequested) {
+          startQuiz();
+        }
+      }
+    }
+
+    function setSaveStatus(answerIndex, state, message) {
+      saveResults[answerIndex] = { state, message };
+
+      // The current question's status is shown immediately.
+      if (answerIndex === currentQuestionIndex) {
+        saveStatusElement.textContent = message;
+        saveStatusElement.className = "save-status";
+
+        if (state === "success") {
+          saveStatusElement.classList.add("success");
+        } else if (state === "error") {
+          saveStatusElement.classList.add("error");
+        }
+      }
+    }
+
+    function goToNextQuestion() {
+      // Do not advance before an answer has been selected.
+      if (answers[currentQuestionIndex] === null) {
+        return;
+      }
+
+      if (currentQuestionIndex < TOTAL_QUESTIONS - 1) {
+        currentQuestionIndex += 1;
+        renderQuestion();
+      } else {
+        showResults();
+      }
+    }
+
+    function showResults() {
+      questionArea.classList.add("hidden");
+      resultArea.classList.remove("hidden");
+
+      progressLabel.textContent = "Quiz Completed";
+      progressBar.style.width = "100%";
+      progressTrack.setAttribute("aria-valuenow", TOTAL_QUESTIONS);
+
+      scoreLabel.textContent = `Score: ${score} / ${TOTAL_QUESTIONS}`;
+      finalScoreElement.textContent = `${score} / ${TOTAL_QUESTIONS}`;
+
+      if (score === TOTAL_QUESTIONS) {
+        resultMessageElement.textContent =
+          "Excellent! You answered all three questions correctly.";
+      } else if (score === 0) {
+        resultMessageElement.textContent =
+          "Keep practicing. Try the quiz again to improve your score.";
+      } else {
+        resultMessageElement.textContent =
+          "Good effort! Review the words and try again.";
+      }
+
+      resultDetailsElement.replaceChildren();
+
+      QUESTIONS.forEach((question, index) => {
+        const answer = answers[index];
+        const item = document.createElement("li");
+
+        const word = document.createElement("strong");
+        word.textContent = `${question.question_no}. ${question.english_word}`;
+
+        const answerLine = document.createElement("div");
+        answerLine.textContent =
+          `Your answer: ${answer.chosen_answer} — ` +
+          (answer.is_correct ? "Correct" : "Incorrect");
+
+        const timeLine = document.createElement("div");
+        timeLine.textContent =
+          `Response time: ${(answer.response_time_ms / 1000).toFixed(2)} seconds`;
+
+        const saveLine = document.createElement("div");
+        const saveResult = saveResults[index];
+
+        if (!saveResult) {
+          saveLine.textContent = "Save status: Pending or unavailable";
+        } else {
+          saveLine.textContent =
+            `Save status: ${saveResult.message}`;
+        }
+
+        item.append(word, answerLine, timeLine, saveLine);
+        resultDetailsElement.appendChild(item);
+      });
+    }
+
+    nextButton.addEventListener("click", goToNextQuestion);
+
+    restartButton.addEventListener("click", startQuiz);
+
+    // Start the first attempt when the page loads.
+    startQuiz();
+  </script>
+</body>
+</html>
